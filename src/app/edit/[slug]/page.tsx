@@ -18,10 +18,11 @@ export default function EditAnniversary({ params }: { params: { slug: string } }
     });
   }, [params.slug]);
   const save = async (next: AnniversaryContent, password: string) => {
-    if (!supabase) return;
+    if (!supabase) throw new Error("ยังไม่ได้ตั้งค่า Supabase");
     const contentWithMusic = await uploadMusic(next, params.slug);
     const { data, error: updateError } = await supabase.rpc("save_anniversary_page", { page_slug: params.slug, next_content: contentWithMusic, next_password_hash: password ? await hashPassword(password) : "" });
-    if (updateError || !data) throw updateError ?? new Error("บันทึกไม่สำเร็จ");
+    if (updateError) throw new Error(`บันทึกไม่สำเร็จ: ${updateError.message}`);
+    if (!data) throw new Error("ไม่พบหน้าที่ต้องการบันทึก หรือยังไม่ได้รัน supabase.sql");
   };
   if (error) return <main className="flex min-h-screen items-center justify-center bg-void-gradient text-bloom-white">{error}</main>;
   if (!content) return <main className="flex min-h-screen items-center justify-center bg-void-gradient text-bloom-white/60">กำลังโหลดหน้าแก้ไข...</main>;

@@ -11,8 +11,12 @@ function Field({ label, path, area = false, draft, onChange }: { label: string; 
   return <label className="block text-xs text-bloom-white/60"><span className="mb-1 block text-[11px] font-medium uppercase tracking-[0.12em] text-bloom-white/70">{label}</span>{area ? <textarea value={String(value ?? "")} onChange={(e) => onChange(path, e.target.value)} rows={4} className="min-h-[88px] w-full rounded-xl border border-white/10 bg-[#201726]/90 p-3 text-base text-white outline-none transition placeholder:text-bloom-white/30 focus:border-bloom-rose/70 focus:bg-[#261a2d]" placeholder={label} /> : <textarea value={String(value ?? "")} onChange={(e) => onChange(path, e.target.value)} rows={2} className="min-h-[52px] w-full rounded-xl border border-white/10 bg-[#201726]/90 p-3 text-base text-white outline-none transition placeholder:text-bloom-white/30 focus:border-bloom-rose/70 focus:bg-[#261a2d]" placeholder={label} />}</label>;
 }
 
-function ImageField({ label, path, onImage }: { label: string; path: string; onImage: (path: string, file: File) => void }) {
-  return <label className="flex cursor-pointer items-center justify-between rounded-lg border border-dashed border-bloom-rose/40 bg-bloom-rose/5 p-2 text-xs text-bloom-white/70"><span>{label}</span><Upload className="h-4 w-4 text-bloom-pink" /><input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) onImage(path, file); }} /></label>;
+function ImageField({ label, path, draft, onImage }: { label: string; path: string; draft: AnniversaryContent; onImage: (path: string, file: File) => void }) {
+  const keys = path.split(".");
+  let value: unknown = draft;
+  keys.forEach((key) => { value = (value as Record<string, unknown>)[key]; });
+  const preview = typeof value === "string" ? value : "";
+  return <label className="block cursor-pointer rounded-lg border border-dashed border-bloom-rose/40 bg-bloom-rose/5 p-2 text-xs text-bloom-white/70"><span className="flex items-center justify-between"><span>{label}</span><Upload className="h-4 w-4 text-bloom-pink" /></span>{preview && <img src={preview} alt="" className="mt-2 h-20 w-full rounded-md object-cover" />}{preview.startsWith("data:") && <span className="mt-1 block text-[10px] text-bloom-pink">เลือกรูปใหม่แล้ว</span>}<input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) onImage(path, file); }} /></label>;
 }
 
 function MusicField({ draft, onAudio, onChange }: { draft: AnniversaryContent; onAudio: (file: File) => void; onChange: (path: string, value: string) => void }) {
@@ -23,7 +27,7 @@ export default function ContentEditor({ onSave, autoOpen = false }: { onSave?: (
   const { content, updateContent, resetContent } = useAnniversaryContent();
   const [open, setOpen] = useState(autoOpen);
   const [draft, setDraft] = useState(content);
-  const [passwordEnabled, setPasswordEnabled] = useState(true);
+  const [passwordEnabled, setPasswordEnabled] = useState(false);
   const [password, setPassword] = useState("");
 
   const startEditing = () => { setDraft(content); setOpen(true); };
@@ -58,10 +62,17 @@ export default function ContentEditor({ onSave, autoOpen = false }: { onSave?: (
     reader.readAsDataURL(file);
   };
   const save = async () => {
-    if (onSave && passwordEnabled && !/^\d{8}$/.test(password)) return;
-    updateContent(draft);
-    await onSave?.(draft, passwordEnabled ? password : "");
-    setOpen(false);
+    if (onSave && passwordEnabled && !/^\d{8}$/.test(password)) {
+      window.alert("กรุณากรอกรหัสผ่านตัวเลขให้ครบ 8 หลัก");
+      return;
+    }
+    try {
+      updateContent(draft);
+      await onSave?.(draft, passwordEnabled ? password : "");
+      setOpen(false);
+    } catch {
+      // The parent displays the specific Supabase error.
+    }
   };
   const reset = () => { resetContent(); setDraft(content); };
 
@@ -74,11 +85,11 @@ export default function ContentEditor({ onSave, autoOpen = false }: { onSave?: (
       <section className="rounded-2xl border border-white/10 bg-[#160e1d]/80 p-3 sm:p-4"><h3 className="mb-3 text-sm text-bloom-rose">Opening</h3><div className="space-y-3"><Field label="Small heading" path="openingText.eyebrow" draft={draft} onChange={set} /><Field label="Title" path="openingText.title" draft={draft} onChange={set} /><Field label="Subtitle" path="openingText.subtitle" draft={draft} onChange={set} /><Field label="Button" path="openingText.cta" draft={draft} onChange={set} /></div></section>
       <section className="rounded-2xl border border-white/10 bg-[#160e1d]/80 p-3 sm:p-4"><h3 className="mb-3 text-sm text-bloom-rose">Music</h3><div className="space-y-3"><MusicField draft={draft} onAudio={audio} onChange={set} />{draft.musicUrl && <p className="text-[10px] uppercase tracking-[0.14em] text-bloom-white/50">เพลงจะใช้ในหน้าแชร์เมื่อกด Save</p>}</div></section>
       <section className="rounded-2xl border border-white/10 bg-[#160e1d]/80 p-3 sm:p-4"><h3 className="mb-3 text-sm text-bloom-rose">Story</h3><div className="space-y-3"><Field label="Line 1" path="introText.lines.0" draft={draft} onChange={set} /><Field label="Line 2" path="introText.lines.1" draft={draft} onChange={set} /><Field label="Line 3" path="introText.lines.2" draft={draft} onChange={set} /><Field label="Button" path="introText.cta" draft={draft} onChange={set} /></div></section>
-      <section className="rounded-2xl border border-white/10 bg-[#160e1d]/80 p-3 sm:p-4"><h3 className="mb-3 text-sm text-bloom-rose">Photos</h3><div className="space-y-3"><ImageField label="Main photo" path="photos.main" onImage={image} /><ImageField label="Photo 2" path="photos.secondary.0" onImage={image} /><ImageField label="Photo 3" path="photos.secondary.1" onImage={image} /><ImageField label="Photo 4" path="photos.secondary.2" onImage={image} /><Field label="Caption" path="photos.caption" area draft={draft} onChange={set} /></div></section>
-      <section className="rounded-2xl border border-white/10 bg-[#160e1d]/80 p-3 sm:p-4"><h3 className="mb-3 text-sm text-bloom-rose">Galaxy section</h3><div className="space-y-3"><Field label="Small heading" path="galaxyIntro.eyebrow" draft={draft} onChange={set} /><Field label="Title" path="galaxyIntro.title" draft={draft} onChange={set} /><Field label="Hint" path="galaxyIntro.hint" draft={draft} onChange={set} />{draft.galaxyPhotos.map((photo, i) => <ImageField key={photo.id} label={`Galaxy photo ${i + 1}`} path={`galaxyPhotos.${i}.image`} onImage={image} />)}</div></section>
+      <section className="rounded-2xl border border-white/10 bg-[#160e1d]/80 p-3 sm:p-4"><h3 className="mb-3 text-sm text-bloom-rose">Photos</h3><div className="space-y-3"><ImageField label="Main photo" path="photos.main" draft={draft} onImage={image} /><ImageField label="Photo 2" path="photos.secondary.0" draft={draft} onImage={image} /><ImageField label="Photo 3" path="photos.secondary.1" draft={draft} onImage={image} /><ImageField label="Photo 4" path="photos.secondary.2" draft={draft} onImage={image} /><Field label="Caption" path="photos.caption" area draft={draft} onChange={set} /></div></section>
+      <section className="rounded-2xl border border-white/10 bg-[#160e1d]/80 p-3 sm:p-4"><h3 className="mb-3 text-sm text-bloom-rose">Galaxy section</h3><div className="space-y-3"><Field label="Small heading" path="galaxyIntro.eyebrow" draft={draft} onChange={set} /><Field label="Title" path="galaxyIntro.title" draft={draft} onChange={set} /><Field label="Hint" path="galaxyIntro.hint" draft={draft} onChange={set} />{draft.galaxyPhotos.map((photo, i) => <ImageField key={photo.id} label={`Galaxy photo ${i + 1}`} path={`galaxyPhotos.${i}.image`} draft={draft} onImage={image} />)}</div></section>
       <section className="rounded-2xl border border-white/10 bg-[#160e1d]/80 p-3 sm:p-4"><h3 className="mb-3 text-sm text-bloom-rose">Counter</h3><div className="space-y-3"><Field label="ข้อความนำ" path="counterText.intro" draft={draft} onChange={set} /><Field label="Days" path="counterText.days" draft={draft} onChange={set} /><Field label="Hours" path="counterText.hours" draft={draft} onChange={set} /><Field label="Minutes" path="counterText.minutes" draft={draft} onChange={set} /><Field label="Seconds" path="counterText.seconds" draft={draft} onChange={set} /><Field label="วันเริ่มต้น (YYYY-MM-DDTHH:mm:ss)" path="couple.anniversaryDate" draft={draft} onChange={set} /></div></section>
-      <section className="rounded-2xl border border-white/10 bg-[#160e1d]/80 p-3 sm:p-4"><h3 className="mb-3 text-sm text-bloom-rose">Timeline</h3><div className="space-y-3"><Field label="หัวข้อ section" path="timelineTitle" draft={draft} onChange={set} />{draft.memories.map((memory, i) => <div key={i} className="space-y-2 rounded-xl border border-white/10 bg-[#201726]/70 p-3"><Field label={`เหตุการณ์ ${i + 1}`} path={`memories.${i}.title`} draft={draft} onChange={set} /><Field label="วันที่" path={`memories.${i}.date`} draft={draft} onChange={set} /><Field label="รายละเอียด" path={`memories.${i}.description`} area draft={draft} onChange={set} /><ImageField label="เลือกรูป" path={`memories.${i}.image`} onImage={image} /></div>)}</div></section>
-      <section className="rounded-2xl border border-white/10 bg-[#160e1d]/80 p-3 sm:p-4"><h3 className="mb-3 text-sm text-bloom-rose">Little Moments</h3><div className="space-y-3"><Field label="หัวข้อ section" path="memoryCardsTitle" draft={draft} onChange={set} />{draft.memoryCards.map((card, i) => <div key={i} className="space-y-2 rounded-xl border border-white/10 bg-[#201726]/70 p-3"><Field label={`การ์ด ${i + 1}`} path={`memoryCards.${i}.title`} draft={draft} onChange={set} /><Field label="ข้อความ" path={`memoryCards.${i}.body`} area draft={draft} onChange={set} /><ImageField label="เลือกรูป" path={`memoryCards.${i}.image`} onImage={image} /></div>)}</div></section>
+      <section className="rounded-2xl border border-white/10 bg-[#160e1d]/80 p-3 sm:p-4"><h3 className="mb-3 text-sm text-bloom-rose">Timeline</h3><div className="space-y-3"><Field label="หัวข้อ section" path="timelineTitle" draft={draft} onChange={set} />{draft.memories.map((memory, i) => <div key={i} className="space-y-2 rounded-xl border border-white/10 bg-[#201726]/70 p-3"><Field label={`เหตุการณ์ ${i + 1}`} path={`memories.${i}.title`} draft={draft} onChange={set} /><Field label="วันที่" path={`memories.${i}.date`} draft={draft} onChange={set} /><Field label="รายละเอียด" path={`memories.${i}.description`} area draft={draft} onChange={set} /><ImageField label="เลือกรูป" path={`memories.${i}.image`} draft={draft} onImage={image} /></div>)}</div></section>
+      <section className="rounded-2xl border border-white/10 bg-[#160e1d]/80 p-3 sm:p-4"><h3 className="mb-3 text-sm text-bloom-rose">Little Moments</h3><div className="space-y-3"><Field label="หัวข้อ section" path="memoryCardsTitle" draft={draft} onChange={set} />{draft.memoryCards.map((card, i) => <div key={i} className="space-y-2 rounded-xl border border-white/10 bg-[#201726]/70 p-3"><Field label={`การ์ด ${i + 1}`} path={`memoryCards.${i}.title`} draft={draft} onChange={set} /><Field label="ข้อความ" path={`memoryCards.${i}.body`} area draft={draft} onChange={set} /><ImageField label="เลือกรูป" path={`memoryCards.${i}.image`} draft={draft} onImage={image} /></div>)}</div></section>
       <section className="rounded-2xl border border-white/10 bg-[#160e1d]/80 p-3 sm:p-4"><h3 className="mb-3 text-sm text-bloom-rose">Secret message</h3><div className="space-y-3"><Field label="ข้อความเปิด" path="secretMessage.prompt" area draft={draft} onChange={set} /><Field label="ปุ่ม" path="secretMessage.cta" draft={draft} onChange={set} /><Field label="ข้อความปิดท้าย" path="secretMessage.closing" area draft={draft} onChange={set} /></div></section>
       <section className="rounded-2xl border border-white/10 bg-[#160e1d]/80 p-3 sm:p-4"><h3 className="mb-3 text-sm text-bloom-rose">Final section</h3><div className="space-y-3"><Field label="Title" path="finalScene.title" draft={draft} onChange={set} /><Field label="ข้อความ" path="finalScene.body" area draft={draft} onChange={set} /><Field label="Sign off" path="finalScene.signOff" draft={draft} onChange={set} /><Field label="ชื่อของคุณ" path="couple.name" draft={draft} onChange={set} /></div></section>
     </div>

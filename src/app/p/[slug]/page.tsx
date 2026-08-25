@@ -14,8 +14,9 @@ export default function PublicAnniversary({ params }: { params: { slug: string }
   const [checking, setChecking] = useState(true);
   useEffect(() => {
     if (!supabase) { setError("Supabase is not configured."); setChecking(false); return; }
-    supabase.rpc("unlock_anniversary_page", { page_slug: params.slug, provided_hash: "" }).then(({ data }) => {
-      if (data) setContent({ ...defaultContent, ...(data as Partial<AnniversaryContent>) });
+    supabase.rpc("unlock_anniversary_page", { page_slug: params.slug, provided_hash: "" }).then(({ data, error: queryError }) => {
+      if (queryError) setError(`Supabase ยังไม่พร้อม: ${queryError.message}`);
+      else if (data) setContent({ ...defaultContent, ...(data as Partial<AnniversaryContent>) });
       setChecking(false);
     });
   }, [params.slug]);

@@ -1,4 +1,4 @@
-create table public.anniversary_pages (
+create table if not exists public.anniversary_pages (
   id uuid primary key default gen_random_uuid(),
   slug text unique not null,
   sender_name text not null,
@@ -19,6 +19,7 @@ alter table public.anniversary_pages
 
 alter table public.anniversary_pages enable row level security;
 drop policy if exists "Anyone can view anniversary pages" on public.anniversary_pages;
+drop policy if exists "Anyone can create an anniversary page" on public.anniversary_pages;
 create policy "Anyone can create an anniversary page"
   on public.anniversary_pages for insert with check (true);
 
@@ -50,7 +51,9 @@ as $$
   update public.anniversary_pages
   set content = next_content, password_hash = next_password_hash
   where slug = page_slug;
-  select found;
+  select exists (
+    select 1 from public.anniversary_pages where slug = page_slug
+  );
 $$;
 
 grant execute on function public.edit_anniversary_page(text) to anon, authenticated;
@@ -60,6 +63,8 @@ insert into storage.buckets (id, name, public)
 values ('anniversary-photos', 'anniversary-photos', true)
 on conflict (id) do nothing;
 
+drop policy if exists "Anyone can upload anniversary photos" on storage.objects;
+drop policy if exists "Anyone can view anniversary photos" on storage.objects;
 create policy "Anyone can upload anniversary photos"
   on storage.objects for insert
   with check (bucket_id = 'anniversary-photos');

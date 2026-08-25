@@ -41,10 +41,15 @@ export default function CreateAnniversary() {
       const name = draft.couple.name.trim() || "our-story";
       const slug = `${name}-${Date.now().toString(36)}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const content = await uploadMusic(await uploadMedia(draft, slug), slug);
-      const { error: insertError } = await supabase.from("anniversary_pages").insert({ slug, sender_name: content.couple.name, partner_name: content.couple.partner, anniversary_date: content.couple.anniversaryDate.slice(0, 10), password_hash: password ? await hashPassword(password) : "", content });
+      const page = { slug, sender_name: content.couple.name, partner_name: content.couple.partner, anniversary_date: content.couple.anniversaryDate.slice(0, 10), content, ...(password ? { password_hash: await hashPassword(password) } : {}) };
+      const { error: insertError } = await supabase.from("anniversary_pages").insert(page);
       if (insertError) throw insertError;
       setResult(`${window.location.origin}/p/${slug}`);
-    } catch (caught) { setError(caught instanceof Error ? caught.message : "บันทึกไม่สำเร็จ"); throw caught; }
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "บันทึกไม่สำเร็จ";
+      setError(message.includes("password_hash") || message.includes("save_anniversary_page") ? `${message} กรุณารัน supabase.sql ใน Supabase SQL Editor` : message);
+      throw caught;
+    }
     finally { setBusy(false); }
   };
   if (result) return <div className="fixed inset-0 z-[80] flex items-center justify-center bg-void-950/90 px-6 backdrop-blur"><div className="card-glass w-full max-w-lg rounded-2xl p-7 text-center"><h2 className="font-display text-3xl italic">ลิงก์ของคุณพร้อมแล้ว</h2><input readOnly value={result} className="mt-6 w-full rounded-lg border border-white/10 bg-black/20 p-3 text-sm text-white/70" /><p className="mt-4 text-xs text-bloom-white/50">ส่งลิงก์นี้พร้อมรหัสวันที่ที่ตั้งไว้ให้คนสำคัญ</p><a href={result} className="mt-5 inline-block rounded-full bg-bloom-rose px-6 py-3 text-sm">เปิดหน้าของคุณ</a></div></div>;
