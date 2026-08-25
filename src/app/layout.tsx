@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 
-// The stylesheet is processed by Next.js at runtime; the project currently
-// does not provide TypeScript declarations for CSS side-effect imports.
-// @ts-expect-error CSS side-effect import
 import "./globals.css";
 
 const display = Cormorant_Garamond({
